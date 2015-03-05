@@ -1,0 +1,11 @@
+# Site settings
+title: Lee's Blog
+email: blog@coomber.org
+description: > # this means to ignore newlines until "baseurl:"
+baseurl: "" # the subpath of your site, e.g. /blog/
+url: "http://lee.coomber.org" # the base hostname & protocol for your site
+twitter_username: leecoomber
+github_username:  ljcoomber
+
+# Build settings
+markdown: kramdown
