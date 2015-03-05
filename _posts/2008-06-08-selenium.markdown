@@ -1,0 +1,129 @@
+---
+layout: post
+title:  "Selenium"
+date:   2006-06-08 19:33:27
+categories: misc
+---
+
+This post first appeared on the [LShift web site](http://www.lshift.net/blog/2006/06/08/selenium/).
+
+I have been looking for something to help me do some automated functional tests on an existing web application, and came across [Selenium](http://openqa.org/). It is a framework that executes tests from within a browser using a combination of Javascript and DHTML. It supports IE, Firefox and Mozilla, thus allowing browser compatibility testing.
+
+There are three Selenium components:
+
+* [Selenium Core](http://www.openqa.org/); contains the main test runner.
+* [Selenium RC (Remote Control)](http://www.openqa.org/); contains a server that can launch a browser automatically and trigger it to run a test suite.
+* [Selenium IDE](http://openqa.org/); an IDE and test recorder in the form of a Firefox extension.
+The latter component provides an easy way in and so I looked at this first.
+
+Selenium IDE
+============
+
+I decided to use a source build (2006-05-19) as the project looked active and I like to tinker. The build was very straightforward and once installed there was a “Selenium IDE” entry in the tools menu. Clicking this brings up the IDE window:
+
+[![Blank IDE screenshot][1t]][1]
+
+I tried it out on the BBC News site as it is publicly available and has good quality HTML. The “record” button in the IDE is depressed at startup so I just entered http://news.bbc.co.uk/ into the location bar in my browser and the site appeared. Nothing happened in the IDE window though – it waits for the first action within the site itself before updating. For the first test suite, I limited myself to simple link checking. Clicking on “World” in the BBC site navigation brings up the page as expected, but also updates the IDE window:
+
+[![IDE after first click screenshot][2t]][2]
+
+The base URL has been filled in. All test commands apply to relative paths meaning that tests can be run on development, stage and production servers just by changing this field. The actions have also been populated:
+
+* open; command to open a URL. This can be relative or absolute but as mentioned above, relative URLs will allow your tests to be used on different hosts.
+
+*  assertTitle; after each page load, Selenium IDE will automatically insert an assertion to check the title. This can be disabled in the “Options” dialog.
+
+*  clickAndWait; clicks an item in the page. The “AndWait” suffix is available on several of the commands and forces the IDE to wait for a page load before continuing. Depending on how a link is constructed, for example, where Javascript is used to load the next page, the IDE may not recognize that it has to wait and may just record a "click" command. In these cases you must manually change the command otherwise the subsequent tests may be applied to the wrong page.
+
+The target for the click is shown as "link=World" which means Selenium looks for a hyperlink with the visible text of “World”. The Selenium Core reference has more information on how elements can be located.
+
+To build up the test I continued to go through and click the other navigation links, i.e., UK, England, Northern Ireland, etc. I then clicked the “Play” button and Selenium directs the browser through the path just taken and checks the specified assertions. Commands that succeeded are coloured green in the IDE and those that failed will turn red:
+
+[![IDE after test execution  screenshot][3t]][3]
+
+Selenium supports several formats for test scripts but the IDE supports just two; HTML (also known as Selenese) and Ruby. HTML is the easiest to parse for non-programmers, and the default. It is visible in the “Source” tab:
+
+[![IDE source tab screenshot][4t]][4]
+
+I saved this test to disk and created a new blank test.
+
+Selenium also supports forms and so in the search box at the top of the BBC News website, I entered "theo" and clicked “Search”. The IDE shows these actions including the command type. The target is listed as just "q" which is the name of the input element where the typing should go:
+
+[![IDE after search screenshot][5t]][5]
+
+One thing to note is that the BBC uses a separate host for searching (search.bbc.co.uk). The tests will run in the IDE because it is a Firefox extension, but they will not work in Selenium Core or RC because Javascript is security restricted to making calls to the page origin host and port only (See “[The Same Origin Policy](http://www.mozilla.org/projects/security/components/same-origin.html)“).
+
+The football player, Theo Walcott, has been in the news a lot so I want to assert that his name comes back in the search results. I highlight the text “Walcott”, right click on the selection and then click “assertTextPresent Walcott”:
+
+[![IDE context menu screenshot][6t]][6]
+
+This creates an entry in the IDE that checks that the text “Walcott” is present somewhere in the document:
+
+[![IDE after asserting text present screenshot][8t]][8]
+
+It is possible to do a more precise check for text. Looking at the web page source code, the search summary “Page 1 of 145 pages for theo” is contained within a paragraph. In the IDE, I click the row below the last command in the IDE and below the test list, select “assertText” in the Command column. In the Target column, I enter the XPath that identifies that paragraph element: `//p[@class='bodymainResults allmainr borders']`. Clicking on “Find” in the IDE will flash the selected node (this requires the DOM Inspector to be installed):
+
+[![IDE highlight element screenshot][8t]][8]
+
+Because the actual number of pages will change, I use a wildcard to match this part of the text and enter "Page 1 of * pages for theo" in the “Value” column:
+
+[![IDE after wildcard text check][9t]][9]
+
+Selenium Core and RC
+====================
+
+The Selenium Core component contains the main test runner. A web page within the test runner directory provides the necessary controls to run the tests.
+
+Because of the same origin restriction and the fact that I could not deploy Selenium Core onto the BBC web site, I used Selenium RC to automate the test running. As well as a server that can launch browsers and initiate the tests, it contains a proxy server that makes it look like the Selenium Core test runner is hosted on the target web site.
+
+Both of these components can be driven using various languages, e.g., Java, .NET, Python, Ruby. They can also use the HTML style tests that were saved from the IDE and this is the most interesting method of test execution for me at the moment as it allows non-programmers, i.e., not me, to build up test suites.
+
+Selenium RC works with test suites rather than the test files themselves. A test suite file is a HTML document with a table referring to the test files.
+
+I put the test suite and test files into a directory along with “server/selenium-server.jar” from the Selenium RC distribution. I launched the server and tests via the following command line (Windows):
+
+    java -jar selenium-server.jar -htmlSuite "*firefox" "http://news.bbc.co.uk" "C:selenium-rctest-suite.html" "C:selenium-rctest-output.html"
+
+This launches the proxy server, forwarding non-Selenium requests onto “http://news.bbc.co.uk”. It then launches the designated browser, in this case, Firefox. Internet Explorer can be launched by substituting "\*iexplore" for "\*firefox". I found that occasionally IE would try and run the tests before the proxy server was fully functional and would therefore trigger a 404 error (Release 0.7.1. Release 0.8 is already out and so this may be fixed). This is because the Selenium specific URL does not exist, e.g.:
+
+    http://news.bbc.co.uk/selenium-server/TestRunner.html?auto=true&test=http://news.bbc.co.uk/selenium-server/test-suite.html
+
+Other browsers can also be launched and the documentation has details on how to do this. When using Firefox or IE, a new profile is created in the current working directory.
+
+Once the browser is launched, it ran the core test runner via the proxy:
+
+[![Selenium test runner screenshot][10t]][10]
+
+A HTML copy of the report was written to disk when it finished.
+
+It is also possible to run the server in interactive mode. The [documentation](http://openqa.org/selenium-rc/tutorial.html) gives some good examples of this.
+
+Conclusion
+==========
+
+Selenium provides a quick and powerful way to write functional tests for web applications, and an environment where they can be run across different hosts. I am sufficiently impressed that I am looking for projects which could benefit from this approach.
+
+Ideally, I would like the tests to integrate with Ant, NAnt or Maven. Because Selenium RC can be driven via Java, this should not be a problem; use a JUnit TestDecorator to start and stop the proxy server and JUnit setup and tear down methods to control the browser instances. Reading the tests from HTML format is a little trickier but a new major version has just been released and contains a tool to convert Selenese HTML tests to Java.
+
+No doubt there are other goodies in the new release too which I shall report on in due course.
+
+  [1t]: /assets/selenium/selenium-1.thumbnail.png
+  [2t]: /assets/selenium/selenium-2.thumbnail.png
+  [3t]: /assets/selenium/selenium-3.thumbnail.png
+  [4t]: /assets/selenium/selenium-4.thumbnail.png
+  [5t]: /assets/selenium/selenium-5.thumbnail.png
+  [6t]: /assets/selenium/selenium-6.thumbnail.png
+  [7t]: /assets/selenium/selenium-7.thumbnail.png
+  [8t]: /assets/selenium/selenium-8.thumbnail.png
+  [9t]: /assets/selenium/selenium-9.thumbnail.png
+  [10t]: /assets/selenium/selenium-10.thumbnail.png
+  [1]: /assets/selenium/selenium-1.png
+  [2]: /assets/selenium/selenium-2.png
+  [3]: /assets/selenium/selenium-3.png
+  [4]: /assets/selenium/selenium-4.png
+  [5]: /assets/selenium/selenium-5.png
+  [6]: /assets/selenium/selenium-6.png
+  [7]: /assets/selenium/selenium-7.png
+  [8]: /assets/selenium/selenium-8.png
+  [9]: /assets/selenium/selenium-9.png
+  [10]: /assets/selenium/selenium-10.png 
