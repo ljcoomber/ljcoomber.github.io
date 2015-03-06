@@ -7,7 +7,7 @@ categories: misc
 
 This post first appeared on the [LShift web site](http://www.lshift.net/blog/2009/11/30/performance-testing-rabbitmq-streams/).
 
-[RabbitMQ Streams](http://github.com/squaremo/rabbitmq-streams is our data streams management system that allows arbitrary routing, transforming, and merging of messages. We used a “quick and dirty” test framework during development to check there were no major performance issues, but we needed to improve on this to test the real configurations used by the [BBC Feeds Hub](http://www.bbc.co.uk/blogs/radiolabs/2009/04/introducing_bbc_feeds_hub.shtml).
+[RabbitMQ Streams](http://github.com/squaremo/rabbitmq-streams) is our data streams management system that allows arbitrary routing, transforming, and merging of messages. We used a “quick and dirty” test framework during development to check there were no major performance issues, but we needed to improve on this to test the real configurations used by the [BBC Feeds Hub](http://www.bbc.co.uk/blogs/radiolabs/2009/04/introducing_bbc_feeds_hub.shtml).
 
 The top level functionality of the system under test (SUT) is:
 
