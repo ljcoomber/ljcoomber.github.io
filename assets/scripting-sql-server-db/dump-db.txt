@@ -1,0 +1,59 @@
+function global:Dump-Db($db) {
+    function Get-SmoObjects($db) {
+        $all = $db.Tables 
+        $all += $db.StoredProcedures
+        $all += $db.Views
+        $all += $db.UserDefinedFunctions
+        $all | where {!($_.IsSystemObject)}
+    }
+    
+    function Generate-ObjectsWithDependencies($objList, $parents) {
+        Write-Host -noNewLine "  Calculating dependencies..."
+        $depTree = $depWalker.DiscoverDependencies($objList, $parents)
+        $orderedUrns = $depWalker.WalkDependencies($depTree)
+
+        Write-Host "done"    
+        Write-Host -noNewLine "  Writing script..."
+    
+        foreach($urn in $orderedUrns) {
+            $smoObject = $serverSmo.GetSmoObject($urn.Urn)
+            foreach($script in $scrp.EnumScript($smoObject)) {
+                $script
+                "GO"
+            }
+        }
+        
+        Write-Host "done"
+    }
+
+    $scrp = new-object ('Microsoft.SqlServer.Management.Smo.Scripter') ($db.Parent)
+    $depWalker = New-Object ('Microsoft.SqlServer.Management.Smo.DependencyWalker') $db.Parent
+    
+    Write-Host -noNewLine "Stage 1/3: finding server objects..."
+    $dbObjects = Get-SmoObjects $db
+    Write-Host "done"
+
+    # Drop structures
+    Write-Host "Stage 2/3: scripting DROPs"
+    $scrp.Options.ScriptSchema = $True
+    $scrp.Options.ScriptDrops = $True
+    $scrp.Options.IncludeIfNotExists = $True    
+    Generate-ObjectsWithDependencies $dbObjects $False
+    Write-Host "Stage 2/3 complete"
+    
+    # Create structures and data
+    Write-Host "Stage 3/3: scripting CREATEs and INSERTs"
+    $scrp.Options.ScriptDrops = $False
+    $scrp.Options.IncludeIfNotExists = $False
+    
+    $scrp.Options.ClusteredIndexes = $True
+    $scrp.Options.DriAll = $True
+    $scrp.Options.Indexes = $True
+    $scrp.Options.Triggers = $True
+    
+    $scrp.Options.ScriptSchema = $True
+    $scrp.Options.ScriptData = $True
+
+    Generate-ObjectsWithDependencies $dbObjects $True
+    Write-Host "Stage 3/3 complete" 
+}
